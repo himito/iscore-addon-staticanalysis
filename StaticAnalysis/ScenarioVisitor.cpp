@@ -43,7 +43,7 @@
 stal::ApplicationPlugin::ApplicationPlugin(const iscore::ApplicationContext& app):
     iscore::GUIApplicationContextPlugin(app, "TemporalAutomatasApplicationPlugin", nullptr)
 {
-    m_himito = new QAction{tr("Generate scenario from Petri Net"), nullptr};
+    m_himito = new QAction{tr("Open from Petri Net"), nullptr};
     connect(m_himito, &QAction::triggered, [&] () {
 
         auto doc = currentDocument();
@@ -205,16 +205,16 @@ void stal::ApplicationPlugin::populateMenus(iscore::MenubarManager* menus)
     menus->insertActionIntoToplevelMenu(
                 iscore::ToplevelMenuElement::FileMenu,
                 m_himito);
-    menus->insertActionIntoToplevelMenu(
-                iscore::ToplevelMenuElement::FileMenu,
-                m_generate);
-    menus->insertActionIntoToplevelMenu(
-                iscore::ToplevelMenuElement::FileMenu,
-                m_convert);
-    menus->insertActionIntoToplevelMenu(
-                iscore::ToplevelMenuElement::FileMenu,
-                m_metrics);
-    menus->insertActionIntoToplevelMenu(
-                iscore::ToplevelMenuElement::FileMenu,
-                m_TIKZexport);
+//    menus->insertActionIntoToplevelMenu(
+//                iscore::ToplevelMenuElement::FileMenu,
+//                m_generate);
+//    menus->insertActionIntoToplevelMenu(
+//                iscore::ToplevelMenuElement::FileMenu,
+//                m_convert);
+//    menus->insertActionIntoToplevelMenu(
+//                iscore::ToplevelMenuElement::FileMenu,
+//                m_metrics);
+//    menus->insertActionIntoToplevelMenu(
+//                iscore::ToplevelMenuElement::FileMenu,
+//                m_TIKZexport);
 }
