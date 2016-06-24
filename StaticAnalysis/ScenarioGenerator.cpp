@@ -19,6 +19,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QPair>
 
 #include <Scenario/Process/Algorithms/Accessors.hpp>
 #include <Scenario/Process/Algorithms/ContainersAccessors.hpp>
@@ -73,6 +74,7 @@ struct random_selector
 class Place{
   public:
     QString name;
+    QList<QPair<int, int>> regions;
     QList<QString> pre;
     QList<QString> pos;
 
@@ -142,7 +144,7 @@ auto addMessageToState(
         CommandDispatcher<>& disp,
         Scenario::StateModel& state,
         QString device,
-        QString address,
+        QStringList address,
         Val&& value
         )
 {
@@ -151,7 +153,7 @@ auto addMessageToState(
                 { // A list
                     { // Of messages
                       { // The address
-                          device, {address}
+                          device, address
                       },
                       State::Value::fromValue(value) // the value
                   }
@@ -350,20 +352,32 @@ void generateScenarioFromPetriNet(
     // Create Device Tree
     auto& device_tree = createTree(disp, iscore::IDocument::documentContext(scenario));
 
+    // default durations of transitions
+//    TimeValue t_min = TimeValue::fromMsecs(3000);
+//    TimeValue t_max = TimeValue::fromMsecs(5000);
+    TimeValue t_min = TimeValue::zero();
+    TimeValue t_max = TimeValue::infinite();
+
+    // initial state of the scenario
+    auto& first_state = *states(scenario).begin();
+
     // Load Transitions
     QJsonArray transitionsArray = json["transitions"].toArray();
     for (int tIndex = 0; tIndex < transitionsArray.size(); ++tIndex) {
         QJsonObject tObject = transitionsArray[tIndex].toObject();
-        createTreeNode(disp, device_tree, tObject["name"].toString(), false);  // adding transition variable to device tree
+        QString t = tObject["name"].toString();
+        createTreeNode(disp, device_tree, t, false);  // adding transition variable to device tree
+        addMessageToState(disp, first_state, "local", {t}, false);
     }
 
-    // default durations of transitions
-    TimeValue t_min = TimeValue::fromMsecs(3000);
-    TimeValue t_max = TimeValue::fromMsecs(5000);
+    // Initial transition
+    auto& state_initial_transition = createTransition(disp, scenario, first_state, t_min, t_max, 0.03);
+    addMessageToState(disp, state_initial_transition, "PyOracle", {"volume_oracle"}, 120);
+    addMessageToState(disp, state_initial_transition, "PyOracle", {"oracle_improvise"}, true);
+    addMessageToState(disp, state_initial_transition, "PyOracle", {"toggle_region"}, true);
+    addMessageToState(disp, state_initial_transition, "PyOracle", {"toggle_taboo"}, true);
+    addMessageToState(disp, state_initial_transition, "PyOracle", {"enable_volume"}, true);
 
-    // initial state of the scenario
-    auto& first_state = *states(scenario).begin();
-    auto& state_initial_transition = createTransition(disp, scenario, first_state, t_min, t_max, 0.02);
 
     // Parsing Places from JSON file
     QJsonArray placesArray = json["places"].toArray();
@@ -375,12 +389,21 @@ void generateScenarioFromPetriNet(
         p.name = pObject["name"].toString();
         p.pos = JsonArrayToStringList(pObject["post"].toArray());
         p.pre = JsonArrayToStringList(pObject["pre"].toArray());
+
+        // Parsing regions of the place
+        QJsonArray regions = pObject["data"].toArray();
+        foreach (QJsonValue region, regions){
+            QJsonArray r = region.toArray();
+            p.regions.append(qMakePair(r[0].toInt(), r[1].toInt()));
+        }
+
         pList.append(p);
 
         if (p.pos.empty()){  // it's final place
             finalTransitions = p.pre;
         } else if (p.pre.empty()){  // it's initial place
             initialTransitions = p.pos;
+            addMessageToState(disp, state_initial_transition, "local", {p.pos}, true);
         }
     }
 
@@ -401,7 +424,14 @@ void generateScenarioFromPetriNet(
 
           // Add pre transitions of the place
           foreach (QString t, p.pre){
-              addMessageToState(disp, state_place, "local", t, false);
+              addMessageToState(disp, state_place, "local", {t}, false);
+          }
+
+          // Add regions to place
+          QPair<int,int> r;
+          foreach (r, p.regions){
+              addMessageToState(disp, state_place, "PyOracle", {"region_handler", "max"}, r.first);
+              addMessageToState(disp, state_place, "PyOracle", {"region_handler", "min"}, r.second);
           }
 
           // Add post transitions of the place
@@ -409,8 +439,8 @@ void generateScenarioFromPetriNet(
           foreach (QString t, p.pos){
               auto& state_transition = createTransition(disp, scenario_place, state_place, t_min, t_max, pos_t);
 
-              addMessageToState(disp, state_transition, "local", t, true);
-              addMessageToState(disp, pattern_state_place, "local", t, false);
+              addMessageToState(disp, state_transition, "local", {t}, true);
+              addMessageToState(disp, pattern_state_place, "local", {t}, false);
 
               pos_t += 0.4;
           }
@@ -428,6 +458,25 @@ void generateScenarioFromPetriNet(
           pos_y += 0.1;
         }
     }
+
+    // Final transition
+    auto& state_final_transition = createTransition(disp, scenario, state_initial_transition, TimeValue::zero(), TimeValue::infinite(), pos_y);
+    addMessageToState(disp, state_final_transition, "local", {finalTransitions}, false);
+    addConditionTrigger(disp, scenario, state_final_transition, finalTransitions);
+
+    addMessageToState(disp, state_final_transition, "PyOracle", {"oracle_improvise"}, false);
+    addMessageToState(disp, state_final_transition, "PyOracle", {"enable_volume"}, false);
+
+
+    /**
+     * ========================================= Initial Values =========================================
+     */
+    addMessageToState(disp, first_state, "PyOracle", {"volume_oracle"}, 0);
+    addMessageToState(disp, first_state, "PyOracle", {"oracle_improvise"}, false);
+    addMessageToState(disp, first_state, "PyOracle", {"toggle_region"}, false);
+    addMessageToState(disp, first_state, "PyOracle", {"toggle_taboo"}, false);
+    addMessageToState(disp, first_state, "PyOracle", {"enable_volume"}, false);
+
 }
 
 void generateScenario(
