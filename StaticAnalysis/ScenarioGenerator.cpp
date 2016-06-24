@@ -430,8 +430,8 @@ void generateScenarioFromPetriNet(
           // Add regions to place
           QPair<int,int> r;
           foreach (r, p.regions){
-              addMessageToState(disp, state_place, "PyOracle", {"region_handler", "max"}, r.first);
-              addMessageToState(disp, state_place, "PyOracle", {"region_handler", "min"}, r.second);
+              addMessageToState(disp, state_place, "PyOracle", {"region_handler", "min"}, r.first);
+              addMessageToState(disp, state_place, "PyOracle", {"region_handler", "max"}, r.second);
           }
 
           // Add post transitions of the place
