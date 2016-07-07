@@ -164,7 +164,7 @@ auto addMessageToState(
 
 auto createConstraint(
     CommandDispatcher<>& disp,
-    const Scenario::ScenarioModel& scenario,
+    const Scenario::ProcessModel& scenario,
     const Scenario::StateModel& startState,
     const int duration,
     double posY
@@ -217,7 +217,7 @@ void createTrigger(
 
 auto createPlace(
     CommandDispatcher<>& disp,
-    const Scenario::ScenarioModel& scenario,
+    const Scenario::ProcessModel& scenario,
     const Scenario::StateModel& startState,
     double posY
     )
@@ -250,7 +250,7 @@ auto createPlace(
               Metadata<ConcreteFactoryKey_k, Scenario::ProcessModel>::get());
   disp.submitCommand(create_scenario_cmd);
 
-  auto& scenario_pattern = static_cast<Scenario::ScenarioModel&>(pattern.processes.at(create_scenario_cmd->processId()));
+  auto& scenario_pattern = static_cast<Scenario::ProcessModel&>(pattern.processes.at(create_scenario_cmd->processId()));
 
   return std::tie(pattern_state, scenario_pattern, loop_state, loop);
 }
@@ -285,7 +285,7 @@ void addConditionTrigger(
 
 auto& createTransition(
         CommandDispatcher<>& disp,
-        const Scenario::ScenarioModel& scenario,
+        const Scenario::ProcessModel& scenario,
         const Scenario::StateModel& startState,
         const TimeValue& min_duration,
         const TimeValue& max_duration,
@@ -338,7 +338,7 @@ QJsonObject loadJsonFile(){
 }
 
 void generateScenarioFromPetriNet(
-        const Scenario::ScenarioModel& scenario,
+        const Scenario::ProcessModel& scenario,
         CommandDispatcher<>& disp
         )
 {
@@ -480,7 +480,7 @@ void generateScenarioFromPetriNet(
 }
 
 void generateScenario(
-        const Scenario::ScenarioModel& scenar,
+        const Scenario::ProcessModel& scenar,
         int N,
         CommandDispatcher<>& disp)
 {
@@ -548,7 +548,7 @@ void generateScenario(
 
         if(tn1.hasTrigger())
             continue;
-        disp.submitCommand(new Command::AddTrigger<ScenarioModel>(tn1));
+        disp.submitCommand(new Command::AddTrigger<ProcessModel>(tn1));
     }
 }
 }
