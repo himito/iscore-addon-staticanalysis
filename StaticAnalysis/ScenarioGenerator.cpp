@@ -353,10 +353,10 @@ void generateScenarioFromPetriNet(
     auto& device_tree = createTree(disp, iscore::IDocument::documentContext(scenario));
 
     // default durations of transitions
-//    TimeValue t_min = TimeValue::fromMsecs(3000);
-//    TimeValue t_max = TimeValue::fromMsecs(5000);
-    TimeValue t_min = TimeValue::zero();
-    TimeValue t_max = TimeValue::infinite();
+//    TimeVal t_min = TimeVal::fromMsecs(3000);
+//    TimeVal t_max = TimeVal::fromMsecs(5000);
+    TimeVal t_min = TimeVal::zero();
+    TimeVal t_max = TimeVal::infinite();
 
     // initial state of the scenario
     auto& first_state = *states(scenario).begin();
@@ -460,7 +460,7 @@ void generateScenarioFromPetriNet(
     }
 
     // Final transition
-    auto& state_final_transition = createTransition(disp, scenario, state_initial_transition, TimeValue::zero(), TimeValue::infinite(), pos_y);
+    auto& state_final_transition = createTransition(disp, scenario, state_initial_transition, TimeVal::zero(), TimeVal::infinite(), pos_y);
     addMessageToState(disp, state_final_transition, "local", {finalTransitions}, false);
     addConditionTrigger(disp, scenario, state_final_transition, finalTransitions);
 
