@@ -7,7 +7,7 @@
 #include <Scenario/Document/TimeNode/Trigger/TriggerModel.hpp>
 #include <Scenario/Process/ScenarioModel.hpp>
 
-#include <iscore/menu/MenuInterface.hpp>
+#include <iscore/actions/MenuManager.hpp>
 #include <QAction>
 #include <QChar>
 #include <QDebug>
@@ -24,10 +24,10 @@
 #include <State/Value.hpp>
 
 #include <iscore/document/DocumentInterface.hpp>
-#include <iscore/plugins/application/GUIApplicationContextPlugin.hpp>
-#include <iscore/tools/SettableIdentifier.hpp>
-#include <iscore/tools/std/Algorithms.hpp>
-#include <iscore/menu/MenuInterface.hpp>
+#include <iscore/plugins/application/GUIApplicationPlugin.hpp>
+#include <iscore/model/Identifier.hpp>
+#include <ossia/detail/algorithms.hpp>
+#include <iscore/actions/Menu.hpp>
 #include <core/document/Document.hpp>
 
 #include <QApplication>
@@ -40,9 +40,10 @@
 #include <StaticAnalysis/ScenarioMetrics.hpp>
 #include <StaticAnalysis/ScenarioGenerator.hpp>
 #include <StaticAnalysis/TIKZConversion.hpp>
+#include <iscore/actions/ActionManager.hpp>
 
 stal::ApplicationPlugin::ApplicationPlugin(const iscore::GUIApplicationContext& app):
-    iscore::GUIApplicationContextPlugin{app}
+    iscore::GUIApplicationPlugin{app}
 {
     m_himito = new QAction{tr("Open from Petri Net"), nullptr};
     connect(m_himito, &QAction::triggered, [&] () {
@@ -192,7 +193,7 @@ stal::ApplicationPlugin::ApplicationPlugin(const iscore::GUIApplicationContext& 
                 QSaveFile f{savename};
                 f.open(QIODevice::WriteOnly);
 
-                QString tex = makeTIKZ(name, baseScenario);
+                QString tex = makeTIKZ2(name, baseScenario);
                 f.write(tex.toUtf8());
                 f.commit();
             }

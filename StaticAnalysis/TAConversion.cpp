@@ -4,7 +4,7 @@
 #include <Scenario/Document/TimeNode/Trigger/TriggerModel.hpp>
 #include <Scenario/Process/ScenarioModel.hpp>
 #include <Scenario/Process/Algorithms/Accessors.hpp>
-#include <iscore/tools/std/Algorithms.hpp>
+#include <ossia/detail/algorithms.hpp>
 
 #include <QFile>
 namespace stal
@@ -12,26 +12,26 @@ namespace stal
 namespace TA
 {
 const int uppaal_division_factor = 100; // used because uppaal numbers don't go over 32768...
-int to_operator(State::Relation::Operator op)
+static int to_operator(ossia::expressions::comparator op)
 {
     switch(op)
     {
-        case State::Relation::Equal:
+        case ossia::expressions::comparator::EQUAL:
             return 1;
-        case State::Relation::Lower:
+        case ossia::expressions::comparator::LOWER:
             return 2;
-        case State::Relation::LowerEqual:
+        case ossia::expressions::comparator::LOWER_EQUAL:
             return 3;
-        case State::Relation::Greater:
+        case ossia::expressions::comparator::GREATER:
             return 4;
-        case State::Relation::GreaterEqual:
+        case ossia::expressions::comparator::GREATER_EQUAL:
             return 5;
         default:
             return 0;
             // TODO !=
     }
 }
-void set_point_condition(Point& point, const State::Expression& e)
+static void set_point_condition(Point& point, const State::Expression& e)
 {
     point.condition = 0;
     if(e.childCount() != 0)
@@ -224,7 +224,7 @@ static QString print(const ScenarioContent& c)
 
         output << "///// SYSTEM /////\n";
         output << "system\n";
-        for_each_in_tuple(std::tie(
+        ossia::for_each_in_tuple(std::tie(
                               c.events,
                               c.events_nd,
                               c.rigids,
@@ -296,20 +296,20 @@ QString makeScenario(const Scenario::ConstraintModel &c)
         "MainStartEvent",
         IntVariable{"msg_start"},
         BroadcastVariable{"global_start"},
-        TimeValue::zero(),
+        TimeVal::zero(),
         1};
     TA::Event scenario_end_event{
         "MainEndEvent",
         IntVariable{"msg_end"},
         BroadcastVariable{"global_end"},
-        TimeValue::fromMsecs(18000),
+        TimeVal::fromMsecs(18000),
                 1};
 
     QString cst_name = name(c);
 
     // Setup of the rigid
     TA::Flexible base{cst_name};
-    base.dmin = TimeValue::zero();
+    base.dmin = TimeVal::zero();
     base.dmax = c.duration.maxDuration();
     base.finite = false;
 
@@ -493,7 +493,7 @@ void TAVisitor::visit(const Scenario::TimeNodeModel &timenode)
         scenario.mixs.push_back(point_start_mix);
     }
 
-    tn_point.comment = "TimeNode Name : " + timenode.metadata.name() + ". Label : " + timenode.metadata.label();
+    tn_point.comment = "TimeNode Name : " + timenode.metadata().getName() + ". Label : " + timenode.metadata().getLabel();
 
     /*
     // We create a flexible that will go to each event of the timenode.
@@ -529,7 +529,7 @@ void TAVisitor::visit(const Scenario::EventModel &event)
     using namespace Scenario;
     const auto& timenode = parentTimeNode(event, scenario.iscore_scenario);
     QString tn_name = name(timenode);
-    auto it = find_if(scenario.points, [&] (const auto& point ) { return point.name == tn_name; });
+    auto it = ossia::find_if(scenario.points, [&] (const auto& point ) { return point.name == tn_name; });
     ISCORE_ASSERT(it != scenario.points.end());
 
     const TA::Point& previous_timenode_point = *it;
@@ -556,7 +556,7 @@ void TAVisitor::visit(const Scenario::EventModel &event)
 
     point.urgent = true;
 
-    point.comment = "EventNode Name : " + event.metadata.name() + ". Label : " + event.metadata.label();
+    point.comment = "EventNode Name : " + event.metadata().getName() + ". Label : " + event.metadata().getLabel();
     if(!event.condition().hasChildren())
     {
         // No condition
@@ -601,29 +601,24 @@ void TAVisitor::visit(const Scenario::StateModel &state)
 void TAVisitor::visit(const Scenario::ProcessModel &s)
 {
     using namespace Scenario;
-    const auto& eev = s.endEvent();
-    const auto& eev_id = eev.id();
-    const auto& etn_id = eev.timeNode();
     for(const TimeNodeModel& timenode : s.timeNodes)
     {
-        if(timenode.id() != etn_id)
-            visit(timenode);
+      visit(timenode);
     }
 
     for(const EventModel& event : s.events)
     {
-        if(event.id() != eev_id)
-            visit(event);
+      visit(event);
     }
 
     for(const StateModel& state : s.states)
     {
-        visit(state);
+      visit(state);
     }
 
     for(const ConstraintModel& constraint : s.constraints)
     {
-        visit(constraint);
+      visit(constraint);
     }
 }
 
@@ -677,7 +672,7 @@ void TAVisitor::visit(const Scenario::ConstraintModel &c)
         rigid.skip = skip;
 
         // Register all the new elements
-        rigid.comment = "Name : " + c.metadata.name() + ". Label : " + c.metadata.label();
+        rigid.comment = "Name : " + c.metadata().getName() + ". Label : " + c.metadata().getLabel();
         scenario.rigids.push_back(rigid);
         scenario.broadcasts.insert(rigid.event_s);
         scenario.broadcasts.insert(rigid.skip);
@@ -709,7 +704,7 @@ void TAVisitor::visit(const Scenario::ConstraintModel &c)
         QString cst_name = name(c);
         flexible.kill = "kill_" + cst_name;
 
-        flexible.comment = "Name : " + c.metadata.name() + ". Label : " + c.metadata.label();
+        flexible.comment = "Name : " + c.metadata().getName() + ". Label : " + c.metadata().getLabel();
         scenario.flexibles.push_back(flexible);
         scenario.broadcasts.insert(flexible.event_s);
         scenario.broadcasts.insert(flexible.skip);

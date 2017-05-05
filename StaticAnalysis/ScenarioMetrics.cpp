@@ -6,7 +6,7 @@
 #include <Scenario/Document/TimeNode/TimeNodeModel.hpp>
 #include <Scenario/Document/TimeNode/Trigger/TriggerModel.hpp>
 #include <Scenario/Process/Algorithms/Accessors.hpp>
-#include <iscore/tools/std/Algorithms.hpp>
+#include <ossia/detail/algorithms.hpp>
 namespace stal
 {
 template<class>
@@ -251,7 +251,7 @@ struct ScenarioFactors
             operators.duration += other.operators.duration;
 
             operands.subprocesses_variables.push_back(other.operands.variables);
-            copy(other.operands.subprocesses_variables, operands.subprocesses_variables);
+            ossia::copy(other.operands.subprocesses_variables, operands.subprocesses_variables);
 
             operands.expressions += other.operands.expressions;
             operands.constraint_rigid_times += other.operands.constraint_rigid_times;
@@ -949,14 +949,14 @@ class CyclomaticVisitor
                 return NodeInBlock::NotSame;
 
             auto prev_csts = previousConstraints(tn, m_scenar);
-            if(any_of(prev_csts, [&] (const auto& cst) {
+            if(ossia::any_of(prev_csts, [&] (const auto& cst) {
                       auto constraint_mark = constraints.at(cst);
                     return constraint_mark != mark && constraint_mark != NoMark;
                 }))
             {
                 return NodeInBlock::NotSame;
             }
-            else if(any_of(prev_csts, [&] (const auto& cst) {
+            else if(ossia::any_of(prev_csts, [&] (const auto& cst) {
                            auto constraint_mark = constraints.at(cst);
                          return constraint_mark != mark && constraint_mark == NoMark;
                      }))
@@ -1089,12 +1089,12 @@ stal::Metrics::Cyclomatic::Factors stal::Metrics::Cyclomatic::ComputeFactors2(
             for(const auto& elt_id : block.constraints)
             {
                 auto& elt = scenar.constraints.at(elt_id);
-                elt.metadata.setLabel(QString::number(program_n) + " - " + QString::number(i));
+                elt.metadata().setLabel(QString::number(program_n) + " - " + QString::number(i));
 
 
                 auto& tn = endTimeNode(elt, scenar);
-                auto it = find_if(blocks, [&] (const BaseBlock& block) {
-                   return contains(block.nodes, tn.id());
+                auto it = ossia::find_if(blocks, [&] (const BaseBlock& block) {
+                   return ossia::contains(block.nodes, tn.id());
                 });
                 if(it != blocks.end())
                 {
@@ -1104,17 +1104,17 @@ stal::Metrics::Cyclomatic::Factors stal::Metrics::Cyclomatic::ComputeFactors2(
             for(const auto& elt_id : block.events)
             {
                 auto& elt = scenar.events.at(elt_id);
-                elt.metadata.setLabel(QString::number(program_n) + " - " + QString::number(i));
+                elt.metadata().setLabel(QString::number(program_n) + " - " + QString::number(i));
             }
             for(const auto& elt_id : block.nodes)
             {
                 auto& elt = scenar.timeNodes.at(elt_id);
-                elt.metadata.setLabel(QString::number(program_n) + " - " + QString::number(i));
+                elt.metadata().setLabel(QString::number(program_n) + " - " + QString::number(i));
 
                 for(const auto& event : elt.events())
                 {
-                    auto it = find_if(blocks, [&] (const BaseBlock& block) {
-                        return contains(block.events, event);
+                    auto it = ossia::find_if(blocks, [&] (const BaseBlock& block) {
+                        return ossia::contains(block.events, event);
                     });
                     if(it != blocks.end() && it->block != block.block)
                     {

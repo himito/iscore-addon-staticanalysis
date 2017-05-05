@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 project(iscore_addon_staticanalysis LANGUAGES CXX)
 
-if(NOT TARGET iscore_plugin_ossia)
+if(NOT TARGET iscore_plugin_engine)
     return()
 endif()
 iscore_common_setup()
@@ -20,6 +20,7 @@ set(SRCS
 "${CMAKE_CURRENT_SOURCE_DIR}/StaticAnalysis/ScenarioVisitor.cpp"
 "${CMAKE_CURRENT_SOURCE_DIR}/StaticAnalysis/ScenarioGenerator.cpp"
 "${CMAKE_CURRENT_SOURCE_DIR}/StaticAnalysis/TAConversion.cpp"
+"${CMAKE_CURRENT_SOURCE_DIR}/StaticAnalysis/TIKZConversion.cpp"
 "${CMAKE_CURRENT_SOURCE_DIR}/iscore_plugin_staticanalysis.cpp"
 )
 
@@ -28,6 +29,6 @@ add_library(${PROJECT_NAME} ${SRCS} ${HDRS} ${QRCS})
 target_link_libraries(${PROJECT_NAME} PUBLIC
     iscore_lib_base iscore_lib_process
     iscore_plugin_scenario iscore_plugin_automation
-    iscore_plugin_loop iscore_plugin_ossia)
+    iscore_plugin_loop iscore_plugin_engine)
 
 setup_iscore_plugin(${PROJECT_NAME})

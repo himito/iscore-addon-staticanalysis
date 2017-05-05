@@ -7,7 +7,7 @@
 #include <Scenario/Process/ScenarioModel.hpp>
 #include <Scenario/Process/Algorithms/Accessors.hpp>
 #include <Scenario/Document/TimeNode/TimeNodeModel.hpp>
-#include <iscore/tools/ModelPathSerialization.hpp>
+#include <iscore/model/path/PathSerialization.hpp>
 #include <Loop/LoopProcessModel.hpp>
 
 #include <Scenario/Process/ScenarioProcessMetadata.hpp>
@@ -26,9 +26,9 @@
 #include <Scenario/Commands/TimeNode/SetTrigger.hpp>
 #include <Explorer/Commands/Add/AddDevice.hpp>
 #include <Explorer/Commands/Add/AddAddress.hpp>
-#include <OSSIA/Protocols/OSC/OSCSpecificSettings.hpp>
-#include <OSSIA/Protocols/OSC/OSCProtocolFactory.hpp>
-#include <OSSIA/Protocols/OSC/OSCDevice.hpp>
+#include <Engine/Protocols/OSC/OSCSpecificSettings.hpp>
+#include <Engine/Protocols/OSC/OSCProtocolFactory.hpp>
+#include <Engine/Protocols/OSC/OSCDevice.hpp>
 #include <Device/Protocol/ProtocolList.hpp>
 #include <Explorer/DocumentPlugin/DeviceDocumentPlugin.hpp>
 #include <Scenario/Commands/State/AddMessagesToState.hpp>
@@ -90,15 +90,15 @@ class Place{
 
 };
 
-auto& createTree(
+static auto& createTree(
         CommandDispatcher<>& disp,
         const iscore::DocumentContext& ctx)
 {
     // Create a tree
     // Get necessary objects : OSC device factory, root node, etc.
     auto settings_factory = ctx.app.components
-            .factory<Device::DynamicProtocolList>()
-            .get(Ossia::OSCProtocolFactory::static_concreteFactoryKey());
+            .interfaces<Device::ProtocolFactoryList>()
+            .get(Engine::Network::OSCProtocolFactory::static_concreteKey());
 
     auto& tree = ctx.plugin<Explorer::DeviceDocumentPlugin>();
 
@@ -126,8 +126,8 @@ auto createTreeNode(
     // Create some node
     Device::AddressSettings theNode;
     theNode.name = name;
-    theNode.clipMode = Device::ClipMode::Free;
-    theNode.ioType = Device::IOType::InOut;
+    theNode.clipMode = ossia::bounding_mode::FREE;
+    theNode.ioType = ossia::access_mode::BI;
     theNode.value = State::Value::fromValue(value);
 
     auto create_addr_cmd = new Explorer::Command::AddAddress(
@@ -149,11 +149,11 @@ auto addMessageToState(
         )
 {
     auto cmd = new Scenario::Command::AddMessagesToState(
-                state.messages(),
+                state,
                 { // A list
                     { // Of messages
-                      { // The address
-                          device, address
+                      State::AddressAccessor{ // The address
+                        {device, {address}}
                       },
                       State::Value::fromValue(value) // the value
                   }
@@ -162,7 +162,7 @@ auto addMessageToState(
     disp.submitCommand(cmd);
 }
 
-auto createConstraint(
+static auto createConstraint(
     CommandDispatcher<>& disp,
     const Scenario::ProcessModel& scenario,
     const Scenario::StateModel& startState,
@@ -182,7 +182,7 @@ auto createConstraint(
   auto state_command = new CreateConstraint_State_Event_TimeNode(
               scenario,                   // scenario
               new_state.id(),             // start state id
-              Scenario::parentEvent(new_state, scenario).date() + TimeValue::fromMsecs(duration), // duration
+              Scenario::parentEvent(new_state, scenario).date() + TimeVal::fromMsecs(duration), // duration
               posY);                       // y-pos in %
   disp.submitCommand(state_command);
 
@@ -194,8 +194,8 @@ void createTrigger(
         CommandDispatcher<>& disp,
         const Scenario_T& scenario,
         const Scenario::StateModel& state,
-        const TimeValue& min_duration,
-        const TimeValue& max_duration
+        const TimeVal& min_duration,
+        const TimeVal& max_duration
         )
 {
   using namespace Scenario;
@@ -207,15 +207,15 @@ void createTrigger(
   disp.submitCommand(trigger_command);
 
    // Change Minimum Duration
-   auto set_min_cmd = new SetMinDuration(scenario.constraint(state.previousConstraint()), min_duration, min_duration.isZero());
+   auto set_min_cmd = new SetMinDuration(scenario.constraint(*state.previousConstraint()), min_duration, min_duration.isZero());
    disp.submitCommand(set_min_cmd);
 
    // Change Maximum Duration
-   auto set_max_cmd = new SetMaxDuration(scenario.constraint(state.previousConstraint()), max_duration, max_duration.isInfinite());
+   auto set_max_cmd = new SetMaxDuration(scenario.constraint(*state.previousConstraint()), max_duration, max_duration.isInfinite());
    disp.submitCommand(set_max_cmd);
 }
 
-auto createPlace(
+static auto createPlace(
     CommandDispatcher<>& disp,
     const Scenario::ProcessModel& scenario,
     const Scenario::StateModel& startState,
@@ -228,14 +228,14 @@ auto createPlace(
   // Create constraint
   auto state_place_cmd = createConstraint(disp, scenario, startState, 12000, posY);
   auto& loop_state = scenario.state(state_place_cmd->createdState());
-  createTrigger(disp, scenario, loop_state, TimeValue::zero(), TimeValue::infinite());
+  createTrigger(disp, scenario, loop_state, TimeVal::zero(), TimeVal::infinite());
 
   // Create the loop
-  using CreateProcess = AddProcessToConstraint<AddProcessDelegate<HasNoRacks>>;
+  using CreateProcess = AddProcessToConstraint<AddProcessDelegate<HasNoSlots>>;
   auto& new_constraint = scenario.constraint(state_place_cmd->createdConstraint());
   auto create_loop_cmd = new CreateProcess(
               new_constraint,
-              Metadata<ConcreteFactoryKey_k, Loop::ProcessModel>::get());
+              Metadata<ConcreteKey_k, Loop::ProcessModel>::get());
   disp.submitCommand(create_loop_cmd);
 
   // Create loop pattern
@@ -243,11 +243,11 @@ auto createPlace(
   auto& pattern = loop.constraint();
 
   auto& pattern_state = loop.state(pattern.endState());
-  createTrigger(disp, loop, pattern_state, TimeValue::zero(), TimeValue::infinite());
+  createTrigger(disp, loop, pattern_state, TimeVal::zero(), TimeVal::infinite());
 
   auto create_scenario_cmd = new CreateProcess(
               pattern,
-              Metadata<ConcreteFactoryKey_k, Scenario::ProcessModel>::get());
+              Metadata<ConcreteKey_k, Scenario::ProcessModel>::get());
   disp.submitCommand(create_scenario_cmd);
 
   auto& scenario_pattern = static_cast<Scenario::ProcessModel&>(pattern.processes.at(create_scenario_cmd->processId()));
@@ -283,12 +283,12 @@ void addConditionTrigger(
     }
 }
 
-auto& createTransition(
+static auto& createTransition(
         CommandDispatcher<>& disp,
         const Scenario::ProcessModel& scenario,
         const Scenario::StateModel& startState,
-        const TimeValue& min_duration,
-        const TimeValue& max_duration,
+        const TimeVal& min_duration,
+        const TimeVal& max_duration,
         double posY
     )
 {
@@ -306,7 +306,7 @@ auto& createTransition(
 }
 
 
-QList<QString> JsonArrayToStringList(
+static QList<QString> JsonArrayToStringList(
         QJsonArray list)
 {
     QList<QString> output;
@@ -316,7 +316,7 @@ QList<QString> JsonArrayToStringList(
     return output;
 }
 
-QJsonObject loadJsonFile(){
+static QJsonObject loadJsonFile(){
     // search the file
     QString filename = QFileDialog::getOpenFileName(NULL,
                                                     "Open Petri Net File",
@@ -420,7 +420,7 @@ void generateScenarioFromPetriNet(
           auto& start_state_id = *scenario_place.startEvent().states().begin();
           auto& place_start_state = scenario_place.states.at(start_state_id);
 
-          auto& state_place = createTransition(disp, scenario_place, place_start_state,  TimeValue::zero(), TimeValue::infinite(), 0.4);
+          auto& state_place = createTransition(disp, scenario_place, place_start_state,  TimeVal::zero(), TimeVal::infinite(), 0.4);
 
           // Add pre transitions of the place
           foreach (QString t, p.pre){
@@ -503,7 +503,7 @@ void generateScenario(
                 {
                     const TimeNodeModel& parentNode = parentTimeNode(state, scenar);
                     Id<StateModel> state_id = state.id();
-                    TimeValue t = TimeValue::fromMsecs(rand() % 20000) + parentNode.date();
+                    TimeVal t = TimeVal::fromMsecs(rand() % 20000) + parentNode.date();
                     disp.submitCommand(new Command::CreateConstraint_State_Event_TimeNode(scenar, state_id, t, state.heightPercentage()));
                     break;
                 }
@@ -511,10 +511,7 @@ void generateScenario(
             case 1:
             {
                 EventModel& event = *selector(scenar.events.get());
-                if(&event != &scenar.endEvent())
-                {
-                    disp.submitCommand(new Command::CreateState(scenar, event.id(), y));
-                }
+                disp.submitCommand(new Command::CreateState(scenar, event.id(), y));
 
                 break;
             }
